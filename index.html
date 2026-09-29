@@ -1,75 +1,148 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title>OgaAI — Your Hustle Assistant</title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2113.65">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 20.0px '.SF NS'; color: #ffffff; -webkit-text-stroke: #ffffff; background-color: #ffffff}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; line-height: 18.7px; font: 17.0px 'Helvetica Neue'; color: #0f1b13; -webkit-text-stroke: #0f1b13}
-    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; line-height: 12.1px; font: 11.0px 'Helvetica Neue'; color: #59675d; -webkit-text-stroke: #59675d}
-    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 13.0px 'Helvetica Neue'; color: #126d27; -webkit-text-stroke: #126d27; background-color: #dd2137; min-height: 16.0px}
-    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 13.0px 'Helvetica Neue'; color: #126d27; -webkit-text-stroke: #126d27}
-    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.5px 'Helvetica Neue'; color: #ffffff; -webkit-text-stroke: #ffffff}
-    p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 12.0px 'Helvetica Neue'; color: #ffffff; -webkit-text-stroke: #ffffff; background-color: #dd2137}
-    p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px 'Helvetica Neue'; color: #59675d; -webkit-text-stroke: #59675d}
-    p.p10 {margin: 0.0px 0.0px 0.0px 0.0px; font: 11.0px 'Helvetica Neue'; color: #126d27; -webkit-text-stroke: #126d27; background-color: #126d27; background-color: rgba(18, 109, 39, 0.1)}
-    p.p11 {margin: 0.0px 0.0px 0.0px 0.0px; font: 11.0px 'Helvetica Neue'; color: #59675d; -webkit-text-stroke: #59675d; min-height: 13.0px}
-    p.p12 {margin: 0.0px 0.0px 0.0px 0.0px; line-height: 22.5px; font: 15.0px 'Helvetica Neue'; color: #0f1b13; -webkit-text-stroke: #0f1b13; min-height: 18.0px}
-    p.p13 {margin: 0.0px 0.0px 0.0px 0.0px; font: 13.0px 'Helvetica Neue'; color: #126d27; -webkit-text-stroke: #126d27; background-color: #ffffff}
-    p.p15 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 20.0px '.Apple Color Emoji UI'; color: #126d27; -webkit-text-stroke: #126d27}
-    p.p16 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 11.0px 'Helvetica Neue'; color: #126d27; -webkit-text-stroke: #126d27}
-    p.p17 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 20.0px '.Apple Color Emoji UI'; color: #59675d; -webkit-text-stroke: #59675d}
-    p.p18 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 11.0px 'Helvetica Neue'; color: #59675d; -webkit-text-stroke: #59675d}
-    p.p19 {margin: 0.0px 0.0px 0.0px 0.0px; font: 28.0px 'Helvetica Neue'; color: #ffffff; -webkit-text-stroke: #ffffff; background-color: #ffffff}
-    p.p21 {margin: 0.0px 0.0px 18.0px 0.0px; text-align: center; font: 13.0px 'Helvetica Neue'; color: #59675d; -webkit-text-stroke: #59675d}
-    p.p22 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 14.0px 'Helvetica Neue'; color: #126d27; -webkit-text-stroke: #126d27; background-color: #ffffff}
-    p.p23 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 14.0px 'Helvetica Neue'; color: #59675d; -webkit-text-stroke: #59675d}
-    p.p24 {margin: 0.0px 0.0px 0.0px 0.0px; font: 13.0px 'Helvetica Neue'; color: #0f1b13; -webkit-text-stroke: #0f1b13}
-    p.p25 {margin: 0.0px 0.0px 0.0px 0.0px; font: 15.0px 'Helvetica Neue'; color: #ffffff; -webkit-text-stroke: #ffffff; background-color: #ffffff}
-    p.p26 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Helvetica Neue'; color: #0f1b13; -webkit-text-stroke: #0f1b13; background-color: #ffffff; min-height: 15.0px}
-    p.p27 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Helvetica Neue'; color: #0f1b13; -webkit-text-stroke: #0f1b13; background-color: #ffffff}
-    span.s1 {font-kerning: none}
-    span.s2 {font-kerning: none; background-color: #ffffff}
-    span.s3 {font-kerning: none; background-color: #f0f5f1}
-    span.s4 {font: 22.0px '.Apple Color Emoji UI'; font-kerning: none; background-color: #f0f5f1}
-    span.s5 {font: 12.0px 'Helvetica Neue'; font-kerning: none; color: #0f1b13; -webkit-text-stroke: 0px #0f1b13}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0a7d34" />
+<title>OgaAI — Your Hustle Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<p class="p1"><span class="s1"><b>O</b></span></p>
-<p class="p2"><span class="s2"><b>OgaAI</b></span></p>
-<p class="p3"><span class="s2">Your hustle assistant</span></p>
-<p class="p4"><span class="s1"><b></b></span><br></p>
-<p class="p5"><span class="s2"><b>EN</b></span></p>
-<p class="p6"><span class="s3"><b>Free trial — 3 uses left today</b></span></p>
-<p class="p7"><span class="s1"><b>Go Premium ₦1,000</b></span></p>
-<h1 style="margin: 0.0px 0.0px 0.0px 0.0px; font: 22.0px '.SF NS'; color: #0f1b13; -webkit-text-stroke: #0f1b13"><span class="s3"><b>Good day, Oga </b></span><span class="s4">👋</span></h1>
-<p class="p9"><span class="s3">Wetin we go handle today?</span></p>
-<p class="p10"><span class="s1"><b>Money move of the day</b></span></p>
-<p class="p11"><span class="s1"></span><br></p>
-<p class="p12"><span class="s1"></span><br></p>
-<p class="p13"><span class="s1"><b>Another tip ↻</b></span><span class="s5"><span class="Apple-converted-space"> </span></span></p>
-<h2 style="margin: 0.0px 0.0px 12.0px 0.0px; font: 15.0px 'Helvetica Neue'; color: #0f1b13; -webkit-text-stroke: #0f1b13"><span class="s3"><b>Quick actions</b></span></h2>
-<p class="p15"><span class="s2">🏠</span></p>
-<p class="p16"><span class="s2"><b>Home</b></span></p>
-<p class="p17"><span class="s2">🧰</span></p>
-<p class="p18"><span class="s2"><b>Tools</b></span></p>
-<p class="p17"><span class="s2">👤</span></p>
-<p class="p18"><span class="s2"><b>Account</b></span></p>
-<p class="p19"><span class="s1"><b>O</b></span></p>
-<h2 style="margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 21.0px 'Helvetica Neue'; color: #0f1b13; -webkit-text-stroke: #0f1b13"><span class="s2"><b>Welcome to OgaAI</b></span></h2>
-<p class="p21"><span class="s2">Your AI hustle assistant — log in to start.</span></p>
-<p class="p22"><span class="s1"><b>Log in</b></span></p>
-<p class="p23"><span class="s3"><b>Sign up</b></span></p>
-<p class="p24"><span class="s2"><b>Email</b></span></p>
-<p class="p24"><span class="s2"><b>Password</b></span></p>
-<p class="p25"><span class="s1"><b>Log in</b></span><span class="s5"><span class="Apple-converted-space"> </span></span></p>
-<p class="p26"><span class="s1"></span><br></p>
-<p class="p26"><span class="s1"></span><br></p>
-<p class="p26"><span class="s1"></span><br></p>
-<p class="p27"><span class="s1">Powered by Technology Masters Co. Ltd.</span></p>
+<div class="device">
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">O</div>
+      <div class="brand-txt">
+        <strong>OgaAI</strong>
+        <span id="tagline">Your hustle assistant</span>
+      </div>
+    </div>
+    <button id="langToggle" class="lang-toggle" type="button">
+      <span class="dot"></span><span id="langLabel">EN</span>
+    </button>
+  </header>
+
+  <!-- Free-trial / subscribe banner -->
+  <div id="trialBanner" class="trial-banner">
+    <span id="trialText">Free trial — 3 uses left today</span>
+    <button id="bannerSub" class="banner-btn" type="button">Go Premium ₦1,000</button>
+  </div>
+
+  <main class="screens">
+    <!-- HOME -->
+    <section id="screen-home" class="screen active">
+      <div class="greet">
+        <h1 id="greetTitle">Good day, Oga 👋</h1>
+        <p id="greetSub">Wetin we go handle today?</p>
+      </div>
+
+      <div class="daily-card">
+        <div class="daily-head">
+          <span class="pill" id="dailyPill">Money move of the day</span>
+          <span class="date" id="todayDate"></span>
+        </div>
+        <p id="dailyTip" class="daily-tip"></p>
+        <button id="newTip" class="ghost-btn" type="button">Another tip ↻</button>
+      </div>
+
+      <h2 class="section-h" id="qaTitle">Quick actions</h2>
+      <div class="grid" id="quickGrid"></div>
+    </section>
+
+    <!-- ASSISTANT / TOOL -->
+    <section id="screen-tool" class="screen">
+      <button id="backBtn" class="back-btn" type="button">← <span id="backLbl">Back</span></button>
+      <div class="tool-head">
+        <div class="tool-icon" id="toolIcon">✨</div>
+        <div>
+          <h2 id="toolTitle">Tool</h2>
+          <p id="toolDesc" class="muted"></p>
+        </div>
+      </div>
+      <form id="toolForm" class="tool-form"></form>
+      <button id="genBtn" class="primary-btn" type="button">Generate ✨</button>
+      <div id="output" class="output hidden">
+        <div class="output-head">
+          <span id="outLabel">Result</span>
+          <button id="copyBtn" class="mini-btn" type="button">Copy</button>
+        </div>
+        <div id="outText" class="out-text"></div>
+        <button id="regenBtn" class="ghost-btn" type="button">Regenerate ↻</button>
+      </div>
+    </section>
+
+    <!-- TOOLS LIST -->
+    <section id="screen-tools" class="screen">
+      <div class="greet"><h1 id="toolsTitle">All tools</h1><p id="toolsSub">Everything for your daily hustle</p></div>
+      <div class="list" id="toolsList"></div>
+    </section>
+
+    <!-- ACCOUNT -->
+    <section id="screen-account" class="screen">
+      <div class="greet"><h1 id="accTitle">My account</h1><p id="accEmail" class="muted"></p></div>
+      <div class="plan-card">
+        <div class="plan-top">
+          <span id="planStatus" class="plan-badge free">Free trial</span>
+          <span class="price"><b>₦1,000</b><small id="perMonth">/month</small></span>
+        </div>
+        <h3 id="planName">OgaAI Premium</h3>
+        <ul class="benefits" id="benefitsList"></ul>
+        <button id="payBtn" class="primary-btn" type="button">Subscribe for ₦1,000/month</button>
+        <p class="secure" id="secureNote">🔒 Secure payment · Cancel anytime</p>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><b id="statUses">0</b><span id="statUsesLbl">Tasks done</span></div>
+        <div class="stat"><b id="statSaved">₦0</b><span id="statSavedLbl">Est. value saved</span></div>
+      </div>
+      <button id="logoutBtn" class="ghost-btn logout" type="button">Log out</button>
+    </section>
+  </main>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-nav="home" type="button"><span>🏠</span><small id="navHome">Home</small></button>
+    <button class="nav-item" data-nav="tools" type="button"><span>🧰</span><small id="navTools">Tools</small></button>
+    <button class="nav-item" data-nav="account" type="button"><span>👤</span><small id="navAcct">Account</small></button>
+  </nav>
+
+  <!-- Pay modal -->
+  <div id="payModal" class="modal hidden">
+    <div class="modal-card">
+      <h3 id="payTitle">Subscribe to OgaAI Premium</h3>
+      <p class="muted" id="paySub">₦1,000 / month · unlimited daily use</p>
+      <div class="bank-box">
+        <div class="bank-row"><span id="bankLbl">Bank</span><b id="bankName">Moniepoint MFB</b></div>
+        <div class="bank-row"><span id="acctLbl">Account Number</span><span class="acct-wrap"><b id="acctNo">5222649250</b><button id="copyAcct" class="mini-btn" type="button">Copy</button></span></div>
+        <div class="bank-row"><span id="nameLbl">Account Name</span><b id="acctName">OgaAI</b></div>
+        <div class="bank-row amt"><span id="amtLbl">Amount</span><b class="amt-val">₦1,000</b></div>
+      </div>
+      <p class="pay-note" id="payNote">Transfer ₦1,000 to the account above, then tap the button below to activate Premium.</p>
+      <button id="confirmPay" class="primary-btn" type="button">I have sent ₦1,000</button>
+      <button id="closePay" class="ghost-btn" type="button">Cancel</button>
+    </div>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Auth overlay -->
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-logo">O</div>
+      <h2 id="authTitle">Welcome to OgaAI</h2>
+      <p class="muted" id="authSub">Your AI hustle assistant — log in to start.</p>
+      <div class="auth-tabs">
+        <button id="tabLogin" class="auth-tab active" type="button">Log in</button>
+        <button id="tabSignup" class="auth-tab" type="button">Sign up</button>
+      </div>
+      <div class="field"><label id="emailLbl">Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" /></div>
+      <div class="field"><label id="pwLbl">Password</label><input id="authPw" type="password" autocomplete="current-password" placeholder="At least 6 characters" /></div>
+      <button id="authBtn" class="primary-btn" type="button">Log in</button>
+      <p id="authErr" class="auth-err hidden"></p>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
 </body>
 </html>
