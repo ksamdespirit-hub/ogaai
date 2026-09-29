@@ -56,6 +56,12 @@ const UI = {
     secure:"\ud83d\udd12 Secure payment \u00b7 Cancel anytime", statUses:"Tasks done", statSaved:"Est. value saved",
     trial:(n)=>`Free trial \u2014 ${n} use${n===1?"":"s"} left today`, goPrem:"Go Premium \u20a61,000",
     premiumOn:"Premium active \u2705", unlimited:"Unlimited daily use unlocked",
+    renewNow:"Renew now (\u20a61,000)", cancelSub:"Cancel subscription", resumeSub:"Keep my subscription",
+    activeUntil:(d)=>`Active until ${d}`, daysLeftTxt:(n)=>`${n} day${n===1?"":"s"} left`,
+    willRemind:"Pay again before then to keep Premium going.",
+    wontRenew:"Won't renew \u2014 Premium stops on this date.",
+    cancelConfirm:"Turn off renewal? You keep Premium until it expires, then it stops.",
+    cancelDone:"Renewal turned off. You keep Premium until it expires.", resumeDone:"Good \u2014 your subscription stays on.",
     payTitle:"Subscribe to OgaAI Premium", paySub:"\u20a61,000 / month \u00b7 unlimited daily use",
     payNow:"Pay \u20a61,000 now", cancel:"Cancel", paying:"Processing payment\u2026", paid:"Payment successful! Premium unlocked \ud83c\udf89",
     limitHit:"Free trial done for today. Subscribe \u20a61,000 for unlimited use.",
@@ -69,6 +75,7 @@ const UI = {
     opening:"Opening secure checkout\u2026", waitPay:"Waiting for your payment\u2026 tap below once you've paid.", checkNow:"I've paid \u2014 check now",
     payFail:"Could not start payment. Try again.", notPaidYet:"Payment not confirmed yet. If you've paid, wait a moment and try again.",
     authFail:"Login failed. Check your email and password.", netErr:"Can't reach the server. Make sure the app's server is running, then try again.",
+    aiDown:"AI is not available right now. Please try again in a moment.",
     hello:"Hello",
     benefits:["Unlimited AI tasks every day","Replies in English & Pidgin","Sales pitches, captions, invoices & more","Daily money move + hustle tips","New tools added every week"] },
   pcm:{ tagline:"Your hustle assistant", greet:"How far, Oga \ud83d\udc4b", greetSub:"Wetin we go handle today?",
@@ -80,6 +87,12 @@ const UI = {
     secure:"\ud83d\udd12 Your money dey safe \u00b7 You fit cancel anytime", statUses:"Work wey I don do", statSaved:"Value wey you save",
     trial:(n)=>`Free trial \u2014 ${n} use${n===1?"":"s"} remain today`, goPrem:"Buy Premium \u20a61,000",
     premiumOn:"Premium dey active \u2705", unlimited:"You fit use am anyhow now",
+    renewNow:"Renew now (\u20a61,000)", cancelSub:"Cancel subscription", resumeSub:"Keep my subscription",
+    activeUntil:(d)=>`E dey active till ${d}`, daysLeftTxt:(n)=>`${n} day${n===1?"":"s"} remain`,
+    willRemind:"Pay again before e reach make Premium continue.",
+    wontRenew:"E no go renew \u2014 Premium go stop for this date.",
+    cancelConfirm:"You wan off renewal? You go still get Premium till e expire, then e go stop.",
+    cancelDone:"Renewal don off. You go still get Premium till e expire.", resumeDone:"Correct \u2014 your subscription still dey on.",
     payTitle:"Subscribe to OgaAI Premium", paySub:"\u20a61,000 / month \u00b7 use am anyhow",
     payNow:"Pay \u20a61,000 now", cancel:"Leave am", paying:"We dey process your money\u2026", paid:"Money enter! Premium don open \ud83c\udf89",
     limitHit:"Free trial don finish for today. Pay \u20a61,000 make you use am anyhow.",
@@ -93,6 +106,7 @@ const UI = {
     opening:"We dey open secure checkout\u2026", waitPay:"We dey wait your payment\u2026 tap below when you don pay.", checkNow:"I don pay \u2014 check am now",
     payFail:"We no fit start payment. Try again.", notPaidYet:"We never see your payment. If you don pay, wait small then try again.",
     authFail:"Login no work. Check your email and password.", netErr:"We no fit reach di server. Make sure di app server dey run, then try again.",
+    aiDown:"AI no dey available now. Abeg try again small time.",
     hello:"How far",
     benefits:["Use AI anyhow every day","E dey reply for English & Pidgin","Sales talk, captions, invoice & more","Money move + hustle tips every day","New tools dey enter every week"] }
 };
@@ -312,17 +326,33 @@ function renderToolsList(){
     l.appendChild(d);
   });
 }
+function fmtDate(ts){ try{ return new Date(ts).toLocaleDateString("en-NG",{year:"numeric",month:"short",day:"numeric"}); }catch{ return ""; } }
 function renderAccount(){
   const prem=isPremium();
   const badge=$("#planStatus");
-  badge.textContent = prem ? t("premiumOn") : (lang==="pcm"?"Free trial":"Free trial");
+  badge.textContent = prem ? t("premiumOn") : "Free trial";
   badge.className = "plan-badge "+(prem?"active":"free");
   const ul=$("#benefitsList"); ul.innerHTML="";
   UI[lang].benefits.forEach(b=>{ const li=document.createElement("li"); li.textContent=b; ul.appendChild(li); });
-  const pb=$("#payBtn");
-  pb.textContent = prem ? t("unlimited") : t("subscribe");
-  pb.disabled = prem;
-  pb.style.opacity = prem?".6":"1";
+  const pb=$("#payBtn"); const mg=$("#subManage");
+  if(prem){
+    pb.classList.add("hidden");
+    mg.classList.remove("hidden");
+    const u=AUTH.user||{};
+    const until = u.premiumUntil ? fmtDate(u.premiumUntil) : "";
+    const days = u.daysLeft!=null ? u.daysLeft : 0;
+    const renews = u.autoRenew!==false;
+    $("#subStatus").textContent = `${t("activeUntil")(until)} \u00b7 ${t("daysLeftTxt")(days)}. ${renews?t("willRemind"):t("wontRenew")}`;
+    const cb=$("#cancelSubBtn");
+    cb.textContent = renews ? t("cancelSub") : t("resumeSub");
+    cb.dataset.mode = renews ? "cancel" : "resume";
+    $("#renewBtn").textContent = t("renewNow");
+  } else {
+    mg.classList.add("hidden");
+    pb.classList.remove("hidden");
+    pb.textContent = t("subscribe");
+    pb.disabled = false; pb.style.opacity = "1";
+  }
   const done=Number(localStorage.getItem(LS.tasks)||0);
   $("#statUses").textContent = done;
   $("#statSaved").textContent = naira(done*1500);
@@ -384,12 +414,21 @@ async function generate(){
   setBusy(true);
   let out, usedOffline=false;
   try{
-    out = await aiGenerate(currentTool, data);   // real AI model
+    out = await aiGenerate(currentTool, data);   // real AI model (counts against the trial on the server)
   }catch(e){
-    if(e.code===401){ setBusy(false); showAuth(); return; }
-    if(e.code===402){ setBusy(false); toast(t("limitHit")); await refreshMe(); go("account"); return; }
-    out = gens[currentTool.id](data);            // graceful offline fallback
-    usedOffline=true;
+    setBusy(false);
+    if(e.code===401){ showAuth(); return; }
+    if(e.code===402){ toast(t("limitHit")); await refreshMe(); renderAll(); go("account"); return; }
+    // Offline sample is a resilience feature for PAID users only.
+    // Free users must get a real (counted) answer — never a free bypass.
+    if(isPremium()){
+      out = gens[currentTool.id](data);
+      usedOffline=true;
+    } else {
+      toast(t("aiDown"));
+      return;
+    }
+    setBusy(true);
   }
   setBusy(false);
   $("#outLabel").textContent = t("result") + (usedOffline ? " "+t("offline") : "");
@@ -427,8 +466,8 @@ function renderPayInfo(){
 }
 function showBankBox(show){ $(".bank-box").style.display = show?"flex":"none"; $("#copyAcct").style.display = show?"":"none"; }
 
-async function openPay(){
-  if(isPremium()) return;
+async function openPay(force){
+  if(isPremium() && !force) return;
   if(!AUTH.token){ showAuth(); return; }
   $("#payModal").classList.remove("hidden");
   const btn=$("#confirmPay"); btn.disabled=true; $("#payNote").textContent=t("opening");
@@ -482,6 +521,20 @@ async function confirmPay(){
     else toast(t("payFail"));
   }
   btn.disabled=false; btn.textContent=label;
+}
+
+async function cancelOrResume(){
+  const u=AUTH.user||{};
+  if(u.autoRenew){
+    if(!confirm(t("cancelConfirm"))) return;
+    const { ok, data } = await api("/api/sub/cancel",{ method:"POST", body:"{}" });
+    if(ok && data.user){ AUTH.user=data.user; toast(t("cancelDone")); renderAll(); }
+    else toast(t("payFail"));
+  } else {
+    const { ok, data } = await api("/api/sub/resume",{ method:"POST", body:"{}" });
+    if(ok && data.user){ AUTH.user=data.user; toast(t("resumeDone")); renderAll(); }
+    else toast(t("payFail"));
+  }
 }
 
 /* ---------- AUTH UI ---------- */
@@ -547,8 +600,10 @@ $("#copyBtn").addEventListener("click",()=>{
   navigator.clipboard?.writeText(txt).then(()=>toast(t("copied"))).catch(()=>toast(t("copied")));
 });
 $$(".nav-item").forEach(n=>n.addEventListener("click",()=>go(n.dataset.nav)));
-$("#payBtn").addEventListener("click", openPay);
-$("#bannerSub").addEventListener("click", openPay);
+$("#payBtn").addEventListener("click", ()=>openPay());
+$("#bannerSub").addEventListener("click", ()=>openPay());
+$("#renewBtn").addEventListener("click", ()=>openPay(true));
+$("#cancelSubBtn").addEventListener("click", cancelOrResume);
 $("#closePay").addEventListener("click", closePay);
 $("#confirmPay").addEventListener("click", confirmPay);
 $("#copyAcct").addEventListener("click",()=>{

@@ -6,10 +6,11 @@
    Run:  npm install && npm start
    ============================================================ */
 "use strict";
+try{ require("dotenv").config(); }catch{}   // load .env if present (optional)
 const express = require("express");
 const path = require("path");
-const fs = require("fs");
 const crypto = require("crypto");
+const store = require("./storage");
 
 const app = express();
 app.use(express.json({ limit:"64kb", verify:(req,_res,buf)=>{ req.rawBody = buf; } }));
@@ -29,14 +30,8 @@ const MON_BASE     = process.env.MONNIFY_BASE_URL || "https://sandbox.monnify.co
 const APP_URL      = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
 const PRICE        = 1000; // NGN / month
 const FREE_LIMIT   = 3;
+const PREMIUM_MS   = 30*24*60*60*1000; // one subscription period = 30 days
 const monnifyOn = !!(MON_KEY && MON_SECRET && MON_CONTRACT);
-
-/* ---------------- tiny JSON user store ---------------- */
-const DATA_DIR = path.join(__dirname, "data");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
-if(!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-function loadUsers(){ try{ return JSON.parse(fs.readFileSync(USERS_FILE,"utf8")); }catch{ return {}; } }
-function saveUsers(u){ fs.writeFileSync(USERS_FILE, JSON.stringify(u,null,2)); }
 
 /* ---------------- auth helpers (built-in crypto) ---------------- */
 function hashPw(pw){ const s=crypto.randomBytes(16).toString("hex"); const h=crypto.scryptSync(pw,s,64).toString("hex"); return s+":"+h; }
@@ -44,9 +39,33 @@ function checkPw(pw,stored){ try{ const [s,h]=stored.split(":"); const hh=crypto
 function b64u(x){ return Buffer.from(x).toString("base64url"); }
 function signToken(p){ const h=b64u(JSON.stringify({alg:"HS256",typ:"JWT"})); const b=b64u(JSON.stringify(p)); const d=h+"."+b; const sig=crypto.createHmac("sha256",SECRET).update(d).digest("base64url"); return d+"."+sig; }
 function verifyToken(tok){ try{ const [h,b,s]=String(tok).split("."); if(!h||!b||!s) return null; const sig=crypto.createHmac("sha256",SECRET).update(h+"."+b).digest("base64url"); if(sig!==s) return null; const p=JSON.parse(Buffer.from(b,"base64url").toString()); if(p.exp&&Date.now()>p.exp) return null; return p; }catch{ return null; } }
-function auth(req,res,next){ const tok=(req.headers.authorization||"").replace(/^Bearer\s+/i,""); const p=verifyToken(tok); if(!p) return res.status(401).json({error:"Please log in."}); const users=loadUsers(); const u=users[p.email]; if(!u) return res.status(401).json({error:"Account not found."}); req.user=u; req.users=users; next(); }
-function publicUser(u){ return { email:u.email, premium:!!u.premium, premiumSince:u.premiumSince||null }; }
+async function auth(req,res,next){ try{ const tok=(req.headers.authorization||"").replace(/^Bearer\s+/i,""); const p=verifyToken(tok); if(!p) return res.status(401).json({error:"Please log in."}); const u=await store.getUser(p.email); if(!u) return res.status(401).json({error:"Account not found."}); req.user=u; next(); }catch(err){ return res.status(500).json({error:"Server error", detail:String(err).slice(0,200)}); } }
+function publicUser(u){
+  const active = premiumActive(u);
+  return {
+    email: u.email,
+    premium: active,
+    premiumSince: u.premiumSince || null,
+    premiumUntil: u.premiumUntil || null,
+    autoRenew: active ? (u.autoRenew !== false) : false,
+    daysLeft: active ? Math.max(0, Math.ceil((u.premiumUntil - Date.now())/86400000)) : 0
+  };
+}
 function today(){ return new Date().toISOString().slice(0,10); }
+
+/* ---------------- subscription (time-based, 30-day period) ---------------- */
+// Premium is active only while premiumUntil is in the future.
+function premiumActive(u){ return !!(u && u.premiumUntil && u.premiumUntil > Date.now()); }
+// Add one paid month. If still active, extend from the current expiry (stacking);
+// otherwise start a fresh 30-day period from now.
+function grantMonth(u){
+  const base = premiumActive(u) ? u.premiumUntil : Date.now();
+  u.premiumUntil = base + PREMIUM_MS;
+  if(!u.premiumSince) u.premiumSince = Date.now();
+  u.autoRenew = true;      // a fresh payment re-enables renewal intent
+  u.lastPaidAt = Date.now();
+  delete u.pendingRef;
+}
 
 /* ---------------- CORS ---------------- */
 app.use((req,res,next)=>{ res.header("Access-Control-Allow-Origin","*"); res.header("Access-Control-Allow-Headers","Content-Type, Authorization"); res.header("Access-Control-Allow-Methods","GET, POST, OPTIONS"); if(req.method==="OPTIONS") return res.sendStatus(204); next(); });
@@ -59,28 +78,32 @@ const TOKEN_TTL = 1000*60*60*24*30; // 30 days
 function issue(u){ return signToken({ email:u.email, exp:Date.now()+TOKEN_TTL }); }
 function validEmail(e){ return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e||"")); }
 
-app.post("/api/auth/signup",(req,res)=>{
-  const email=String(req.body?.email||"").trim().toLowerCase();
-  const pw=String(req.body?.password||"");
-  if(!validEmail(email)) return res.status(400).json({error:"Enter a valid email."});
-  if(pw.length<6) return res.status(400).json({error:"Password must be at least 6 characters."});
-  const users=loadUsers();
-  if(users[email]) return res.status(409).json({error:"Account already exists. Please log in."});
-  users[email]={ email, pass:hashPw(pw), premium:false, freeDay:today(), freeUses:0, created:Date.now() };
-  saveUsers(users);
-  res.json({ token:issue(users[email]), user:publicUser(users[email]) });
+app.post("/api/auth/signup",async (req,res)=>{
+  try{
+    const email=String(req.body?.email||"").trim().toLowerCase();
+    const pw=String(req.body?.password||"");
+    if(!validEmail(email)) return res.status(400).json({error:"Enter a valid email."});
+    if(pw.length<6) return res.status(400).json({error:"Password must be at least 6 characters."});
+    if(await store.getUser(email)) return res.status(409).json({error:"Account already exists. Please log in."});
+    const u={ email, pass:hashPw(pw), premium:false, freeDay:today(), freeUses:0, created:Date.now() };
+    await store.saveUser(u);
+    res.json({ token:issue(u), user:publicUser(u) });
+  }catch(err){ res.status(500).json({error:"Server error", detail:String(err).slice(0,200)}); }
 });
 
-app.post("/api/auth/login",(req,res)=>{
-  const email=String(req.body?.email||"").trim().toLowerCase();
-  const pw=String(req.body?.password||"");
-  const users=loadUsers(); const u=users[email];
-  if(!u || !checkPw(pw,u.pass)) return res.status(401).json({error:"Wrong email or password."});
-  res.json({ token:issue(u), user:publicUser(u) });
+app.post("/api/auth/login",async (req,res)=>{
+  try{
+    const email=String(req.body?.email||"").trim().toLowerCase();
+    const pw=String(req.body?.password||"");
+    const u=await store.getUser(email);
+    if(!u || !checkPw(pw,u.pass)) return res.status(401).json({error:"Wrong email or password."});
+    res.json({ token:issue(u), user:publicUser(u) });
+  }catch(err){ res.status(500).json({error:"Server error", detail:String(err).slice(0,200)}); }
 });
 
 app.get("/api/auth/me", auth, (req,res)=>{
-  const left = req.user.premium ? null : Math.max(0, FREE_LIMIT - (req.user.freeDay===today()?req.user.freeUses:0));
+  const active = premiumActive(req.user);
+  const left = active ? null : Math.max(0, FREE_LIMIT - (req.user.freeDay===today()?req.user.freeUses:0));
   res.json({ user:publicUser(req.user), freeLeft:left, freeLimit:FREE_LIMIT });
 });
 /* ---------------- AI ROUTES ---------------- */
@@ -117,9 +140,9 @@ app.post("/api/generate", auth, async (req,res)=>{
     if(rateLimited(String(ip))) return res.status(429).json({error:"Too many requests, slow down small."});
     // free-trial gate (server-side, per user)
     const u=req.user;
-    if(!u.premium){
+    if(!premiumActive(u)){
       if(u.freeDay!==today()){ u.freeDay=today(); u.freeUses=0; }
-      if(u.freeUses>=FREE_LIMIT){ saveUsers(req.users); return res.status(402).json({error:"Free trial done for today. Subscribe \u20a61,000 for unlimited use.", needSubscribe:true}); }
+      if(u.freeUses>=FREE_LIMIT){ await store.saveUser(u); return res.status(402).json({error:"Free trial done for today. Subscribe \u20a61,000 for unlimited use.", needSubscribe:true}); }
     }
     if(!API_KEY) return res.status(503).json({error:"AI not configured: set OPENAI_API_KEY."});
     const { tool, fields, lang } = req.body||{};
@@ -131,7 +154,7 @@ app.post("/api/generate", auth, async (req,res)=>{
     const data=await r.json();
     const text=data?.choices?.[0]?.message?.content?.trim()||"";
     if(!text) return res.status(502).json({error:"Empty AI response"});
-    if(!u.premium){ u.freeUses++; saveUsers(req.users); }
+    if(!premiumActive(u)){ u.freeUses++; await store.saveUser(u); }
     res.json({ text });
   }catch(err){ res.status(500).json({error:"Server error", detail:String(err).slice(0,300)}); }
 });
@@ -149,10 +172,10 @@ async function monnifyToken(){
 app.post("/api/pay/init", auth, async (req,res)=>{
   try{
     const u=req.user;
-    if(u.premium) return res.json({ alreadyPremium:true });
+    // Allow paying even while active (early renewal stacks another 30 days).
     if(!monnifyOn){
       // DEMO mode: no gateway configured -> caller shows manual bank transfer
-      return res.json({ demo:true, bank:{ name:"Moniepoint MFB", account:"5222649250" }, amount:PRICE });
+      return res.json({ demo:true, bank:{ name:"Moniepoint MFB", account:"5222649250" }, amount:PRICE, renewing:premiumActive(u) });
     }
     const token=await monnifyToken();
     const paymentReference="OGA-"+Date.now()+"-"+crypto.randomBytes(3).toString("hex");
@@ -170,7 +193,7 @@ app.post("/api/pay/init", auth, async (req,res)=>{
     const j=await r.json();
     const body=j?.responseBody;
     if(!body?.checkoutUrl) return res.status(502).json({ error:"Could not start payment", detail:JSON.stringify(j).slice(0,300) });
-    u.pendingRef=body.transactionReference; u.pendingPayRef=paymentReference; saveUsers(req.users);
+    u.pendingRef=body.transactionReference; u.pendingPayRef=paymentReference; await store.saveUser(u);
     res.json({ checkoutUrl:body.checkoutUrl, transactionReference:body.transactionReference });
   }catch(err){ res.status(500).json({ error:"Payment init failed", detail:String(err).slice(0,300) }); }
 });
@@ -179,20 +202,22 @@ app.post("/api/pay/init", auth, async (req,res)=>{
 app.get("/api/pay/verify", auth, async (req,res)=>{
   try{
     const u=req.user;
-    if(u.premium) return res.json({ status:"PAID", premium:true });
-    if(!monnifyOn) return res.json({ status:"PENDING", premium:false, demo:true });
-    const ref=u.pendingRef; if(!ref) return res.json({ status:"NONE", premium:false });
+    if(!monnifyOn){
+      if(premiumActive(u)) return res.json({ status:"PAID", premium:true, user:publicUser(u) });
+      return res.json({ status:"PENDING", premium:false, demo:true });
+    }
+    const ref=u.pendingRef; if(!ref) return res.json({ status:premiumActive(u)?"PAID":"NONE", premium:premiumActive(u), user:publicUser(u) });
     const token=await monnifyToken();
     const r=await fetch(`${MON_BASE}/api/v2/transactions/${encodeURIComponent(ref)}`,{ headers:{ Authorization:`Bearer ${token}` } });
     const j=await r.json();
     const status=j?.responseBody?.paymentStatus||"PENDING";
-    if(status==="PAID"){ u.premium=true; u.premiumSince=Date.now(); delete u.pendingRef; saveUsers(req.users); }
-    res.json({ status, premium:!!u.premium });
+    if(status==="PAID"){ grantMonth(u); await store.saveUser(u); }
+    res.json({ status, premium:premiumActive(u), user:publicUser(u) });
   }catch(err){ res.status(500).json({ error:"Verify failed", detail:String(err).slice(0,300) }); }
 });
 
 // 3) webhook -> Monnify calls this automatically when money lands
-app.post("/api/pay/webhook", (req,res)=>{
+app.post("/api/pay/webhook", async (req,res)=>{
   try{
     if(!monnifyOn) return res.sendStatus(200);
     const sig=req.headers["monnify-signature"]||"";
@@ -202,18 +227,41 @@ app.post("/api/pay/webhook", (req,res)=>{
     const paid = ev?.eventType==="SUCCESSFUL_TRANSACTION" || ev?.eventData?.paymentStatus==="PAID";
     const email=(ev?.eventData?.customer?.email||ev?.eventData?.customerEmail||"").toLowerCase();
     if(paid && email){
-      const users=loadUsers(); const u=users[email];
-      if(u && !u.premium){ u.premium=true; u.premiumSince=Date.now(); delete u.pendingRef; saveUsers(users); }
+      const u=await store.getUser(email);
+      if(u){ grantMonth(u); await store.saveUser(u); }
     }
     res.sendStatus(200);
   }catch{ res.sendStatus(200); }
 });
 
 // DEMO-only manual confirm (used when Monnify not configured)
-app.post("/api/pay/demo-confirm", auth, (req,res)=>{
-  if(monnifyOn) return res.status(400).json({ error:"Live payments active; use gateway verification." });
-  const u=req.user; u.premium=true; u.premiumSince=Date.now(); saveUsers(req.users);
-  res.json({ premium:true, demo:true });
+app.post("/api/pay/demo-confirm", auth, async (req,res)=>{
+  try{
+    if(monnifyOn) return res.status(400).json({ error:"Live payments active; use gateway verification." });
+    const u=req.user; grantMonth(u); await store.saveUser(u);
+    res.json({ premium:true, demo:true, user:publicUser(u) });
+  }catch(err){ res.status(500).json({ error:"Server error", detail:String(err).slice(0,200) }); }
+});
+
+// Manage subscription: turn OFF renewal. Premium stays active until it expires,
+// then simply lapses (payments are one-off transfers, so nothing is auto-charged).
+app.post("/api/sub/cancel", auth, async (req,res)=>{
+  try{
+    const u=req.user;
+    if(!premiumActive(u)) return res.status(400).json({ error:"No active subscription to cancel." });
+    u.autoRenew=false; await store.saveUser(u);
+    res.json({ ok:true, user:publicUser(u) });
+  }catch(err){ res.status(500).json({ error:"Server error", detail:String(err).slice(0,200) }); }
+});
+
+// Re-enable renewal reminders without paying again (while still active).
+app.post("/api/sub/resume", auth, async (req,res)=>{
+  try{
+    const u=req.user;
+    if(!premiumActive(u)) return res.status(400).json({ error:"Subscription not active. Please subscribe." });
+    u.autoRenew=true; await store.saveUser(u);
+    res.json({ ok:true, user:publicUser(u) });
+  }catch(err){ res.status(500).json({ error:"Server error", detail:String(err).slice(0,200) }); }
 });
 
 /* ---------------- static front-end ---------------- */
@@ -222,6 +270,11 @@ app.get("/api/health", (_req,res)=> res.json({ ok:true, model:MODEL, aiConfigure
 app.use(express.static(path.join(__dirname)));
 app.get("*", (_req,res)=> res.sendFile(path.join(__dirname,"index.html")));
 if(process.env.NO_LISTEN!=="1"){
-  app.listen(PORT,"0.0.0.0",()=> console.log(`OgaAI on http://localhost:${PORT}  AI:${API_KEY?"on":"OFF"}  Monnify:${monnifyOn?"on":"OFF(demo)"}`));
+  store.init()
+    .then((backend)=>{
+      app.listen(PORT,"0.0.0.0",()=> console.log(`OgaAI on http://localhost:${PORT}  AI:${API_KEY?"on":"OFF"}  Monnify:${monnifyOn?"on":"OFF(demo)"}  Storage:${backend}`));
+    })
+    .catch((err)=>{ console.error("Storage init failed:", err.message); process.exit(1); });
 }
 module.exports = app;
+module.exports.init = store.init;
